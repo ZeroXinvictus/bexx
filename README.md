@@ -469,7 +469,8 @@ const sock = makeWASocket({
   queue:    { concurrency: 4, ratePerSecond: 10, maxRetries: 4 },
   messages: { max: 5000, dedup: true },
   media:    { logger },
-  schedule: { file: './jobs.json' }
+  schedule: { file: './jobs.json' },
+ stability: { heartbeatIntervalMs: 30000, maxRetries: 8 }
 })
 ```
 
@@ -500,24 +501,43 @@ so your handler can skip re-processing. Bounded by `max` (no memory leak).
 
 ### 9.3 `sock.media` — smart media send
 ```js
-// auto-detect source (Buffer | stream | file path | URL) + MIME + type routing
+// auto-detect source (Buffer | stream | file path | URL)
+// MIME otomatis via modul `mime-types` (bukan tabel manual)
 await sock.media.send(jid, '/path/to/video.mp4', { caption: 'vid' })
 await sock.media.send(jid, { buffer: png, filename: 'a.png' })
 await sock.media.send(jid, 'https://x.co/pic.jpg')
 // image->imageMessage, video->videoMessage, audio->audioMessage,
 // pdf/zip/...->documentMessage, webp->stickerMessage
 ```
+MIME detection memakai modul standard `mime-types` (sudah jadi dependency),
+bukan tabel hardcode — semua ekstensi dikenal otomatis.
 
-### 9.4 `sock.schedule` — persistent scheduler (restart-safe)
+### 9.4 `sock.stability` — connection watchdog (prioritas utama)
+```js
+sock.stability.health()
+// { up, lastSeenAt, uptimeMs, retries, maxRetries, reconnecting, staleMs }
+sock.stability.on('healthy', () => {})   // socket sehat lagi
+sock.stability.on('unhealthy', () => {}) // socket mati
+sock.stability.on('reconnect', () => {}) // barusan reconnect
+```
+Stability engine:
+- **Auto-reconnect** dengan exponential backoff + jitter (anti thundering herd)
+- **Heartbeat / keepalive** — deteksi socket "hanging", force-reconnect
+- **Graceful degradation** — pause `sock.queue` otomatis saat unhealthy,
+  resume saat sehat (pesan nggak masuk ke socket mati)
+- **Banned detection** — status 408 tidak di-retry
+- Monitor health via `sock.stability.health()`
+
+### 9.5 `sock.schedule` — persistent scheduler (restart-safe)
 ```js
 sock.schedule.add(jid, { text: 'reminder' }, { dueAt: Date.now() + 3600_000 })
 sock.schedule.list()
 sock.schedule.cancel(id)
 sock.schedule.size
-// jobs persist to JSON file; pending jobs retry on reconnect / after restart
+// jobs persist ke JSON file; pending jobs retry saat reconnect / setelah restart
 ```
 
-### 9.5 `BaileysManager` — multi-session, one process
+### 9.6 `BaileysManager` — multi-session, satu process
 ```js
 const { BaileysManager } = require('bexx')
 const mgr = new BaileysManager(makeWASocket, { authDir: '.bexx-sessions' })
@@ -526,7 +546,7 @@ await mgr.create('account2')
 console.log(mgr.states())      // { account1: 'open', account2: 'open' }
 await mgr.closeAll()
 ```
-Auto-reconnect with exponential backoff, per-session error isolation.
+Auto-reconnect dengan backoff, isolasi error per session.
 
 > Tidak diimplementasikan: **Message Transaction Engine** (rollback/idempotency) —
 > sengaja skip (YAGNI), karena pesan WA sudah terkirim tidak bisa di-rollback.

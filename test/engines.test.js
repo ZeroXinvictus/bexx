@@ -5,6 +5,7 @@ const assert = require("node:assert");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { EventEmitter } = require("node:events");
 const { makeMessageQueue, makeMessageCache, makeScheduler, BaileysManager } = require("../lib/cjs/Engine/index.js");
 const { BaileysManager: BM } = require("../lib/cjs/Engine/manager.js");
 
@@ -99,7 +100,50 @@ const makeFakeSock = (online = true) => {
   assert.strictEqual(mgr.size(), 0);
   console.log("✓ manager");
  }
- console.log("\nAll engine self-tests passed.");
+  // 5) MEDIA: auto-detect source + MIME (via mime-types) + type routing
+{
+ const { makeMediaEngine } = require("../lib/cjs/Engine/media.js");
+ const media = makeMediaEngine({ sendMessage: async () => ({ ok: 1 }), waUploadToServer: async () => ({}) });
+ const assert2 = (cond, msg) => { if (!cond) throw new Error(msg); };
+ for (const [src, expectMime, expectRoute] of [
+  ["https://x.co/v.mp4", "video/mp4", "video"],
+  ["https://x.co/s.webp", "image/webp", "sticker"],
+  ["https://x.co/a.mp3", "audio/mpeg", "audio"],
+  ["https://x.co/d.pdf", "application/pdf", "document"],
+  ["https://x.co/p.png", "image/png", "image"]
+ ]) {
+  const r = await media.resolveSource(src);
+  assert2(r.mimetype === expectMime, "mime for "+src+" = "+r.mimetype+", expected "+expectMime);
+  assert2(media._route(r.mimetype) === expectRoute, "route for "+src+" = "+media._route(r.mimetype));
+ }
+ console.log("✓ media (mime-types routing)");
+}
+ // 6) STABILITY: auto-reconnect + graceful degradation (queue pause/resume)
+{
+ const { makeStabilityEngine } = require("../lib/cjs/Engine/stability.js");
+ const ev = new EventEmitter();
+ let paused = false, resumed = false;
+ const sock = {
+  ev,
+  connect: () => ev.emit("connection.update", { status: "open" }),
+  end: () => ev.emit("connection.update", { status: "close" }),
+  queue: { pause: () => (paused = true), resume: () => (resumed = true) }
+ };
+ const st = makeStabilityEngine(sock, { heartbeatIntervalMs: 50, heartbeatTimeoutMs: 200, baseBackoffMs: 10, maxRetries: 3 });
+ assert.strictEqual(st.health().up, true, "starts healthy");
+ ev.emit("connection.update", { status: "close" });
+ await new Promise(r => setTimeout(r, 40));
+ assert.strictEqual(st.health().up, false, "close => unhealthy");
+ assert.strictEqual(paused, true, "queue auto-paused when unhealthy");
+ ev.emit("connection.update", { status: "open" });
+ await new Promise(r => setTimeout(r, 40));
+ assert.strictEqual(st.health().up, true, "open => healthy");
+ assert.strictEqual(resumed, true, "queue auto-resumed when healthy");
+ assert.strictEqual(st.health().retries, 0, "retries reset on reopen");
+ st.stop();
+ console.log("✓ stability (auto-reconnect + graceful degradation)");
+}
+console.log("\nAll engine self-tests passed.");
 })().catch(err => {
  console.error("SELF-TEST FAILED:", err);
  process.exit(1);

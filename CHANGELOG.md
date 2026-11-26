@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 — stability-first refactor + mime-types
+
+- **`sock.stability`** — connection watchdog: auto-reconnect (exp backoff + jitter),
+  heartbeat/keepalive, graceful degradation (auto-pause/resume `sock.queue`),
+  banned (408) detection, `health()` monitor. This is the **top-priority** layer.
+- **Media engine uses `mime-types` module** instead of a hand-rolled MIME table —
+  all extensions auto-recognized, no manual mapping.
+- Config now: `makeWASocket({ queue, messages, media, schedule, stability })`.
+- Self-tests cover all 6 engines (queue, cache, scheduler, manager, media, stability).
+
 ## 0.2.0 — bexx Engines
 
 - **`sock.queue`** — priority message queue (p-queue): concurrency, rate control,
