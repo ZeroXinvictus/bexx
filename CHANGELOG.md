@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 — stability anti-spam (no reconnect on fresh pairing)
+
+- Stability engine now skips auto-reconnect on a **fresh pairing session**
+ (socket that has never been `open`), unless `reconnectOnClose` is set.
+ This stops the engine from spamming WA with repeated pairing attempts —
+ WA closes unpaired sockets, and repeated reconnects read as spam (428).
+- Adds `reconnectOnClose` option to opt back in to aggressive reconnect.
+
 ## 0.4.0 — pairing notification + real stability auto-reconnect
 
 - **`pairing.success` event** — emitted when a device pairs (code or QR), so
