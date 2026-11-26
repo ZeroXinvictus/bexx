@@ -239,6 +239,27 @@ const makeFakeSock = (online = true) => {
  assert.strictEqual(t.sock.ws.isOpen, true, "network.reconnect restores socket");
  console.log("✓ harness (record/save/replay + network simulation)");
 }
+// 10) RICH ENGINE: builders produce valid richResponseMessage payload
+{
+const { makeRichEngine } = require("../lib/cjs/Engine/rich.js");
+const rich = makeRichEngine(null);
+const card = rich.card({
+text: "halo **bold** + [link](https://wa.me) + $E=mc^2$",
+image: "https://mmg.whatsapp.net/f/fxYwZQ",
+footer: [{ label: "Detail", type: "OPEN_URL", url: "https://wa.me" }],
+suggestions: ["coba ini", "coba itu"],
+title: "Rich Demo"
+});
+assert.ok(card.text, "card has text");
+assert.ok(card.image, "card has image");
+assert.ok(card.footer, "card has footer");
+const built = await rich.build(card);
+assert.ok(built.botForwardedMessage, "build produces botForwardedMessage");
+assert.ok(built.botForwardedMessage.message.richResponseMessage, "has richResponseMessage");
+const sub = built.botForwardedMessage.message.richResponseMessage.submessages;
+assert.ok(sub.length >= 2, `has submessages (got ${sub.length})`);
+console.log("✓ rich (builders → valid richResponseMessage)");
+}
 console.log("\nAll engine self-tests passed.");
 })().catch(err => {
  console.error("SELF-TEST FAILED:", err);
