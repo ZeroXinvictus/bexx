@@ -134,6 +134,9 @@ const makeFakeSock = (online = true) => {
  reconnect: () => sock2
  });
  assert.strictEqual(st.health().up, true, "starts healthy");
+ ev.emit("connection.update", { connection: "open" });
+ await new Promise(r => setTimeout(r, 20));
+ assert.strictEqual(st.health().up, true, "open => healthy (marks everOpened)");
  ev.emit("connection.update", { connection: "close" });
  await new Promise(r => setTimeout(r, 40));
  assert.strictEqual(st.health().up, false, "close => unhealthy");
@@ -146,6 +149,20 @@ const makeFakeSock = (online = true) => {
  assert.strictEqual(st._sock, sock2, "engine rebound to the new socket");
  st.stop();
  console.log("✓ stability (auto-reconnect + graceful degradation)");
+ }
+ // 6b) STABILITY: fresh session (never opened) does NOT auto-reconnect (anti-spam pairing)
+ {
+ const { makeStabilityEngine } = require("../lib/cjs/Engine/stability.js");
+ const ev = new EventEmitter();
+ const sock = { ev };
+ let reconnects = 0;
+ const st = makeStabilityEngine(sock, { baseBackoffMs: 10, maxRetries: 3, reconnect: () => { reconnects++; return { ev: new EventEmitter() }; } });
+ ev.emit("connection.update", { connection: "close", lastDisconnect: {} });
+ await new Promise(r => setTimeout(r, 60));
+ assert.strictEqual(reconnects, 0, "fresh session (never opened) does not auto-reconnect - prevents pairing spam");
+ assert.strictEqual(st._health.lastError, "pairing_pending_no_reconnect");
+ st.stop();
+ console.log("✓ stability (no reconnect on fresh pairing, anti-spam)");
 }
 console.log("\nAll engine self-tests passed.");
 })().catch(err => {
