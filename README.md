@@ -38,15 +38,16 @@ const { proto } = require('bexx/WAProto')
 ```js
 const sock = makeWASocket({
   logger: pino({ level: 'silent' }),
-  printQRInTerminal: true,
-  authStrategy: await useMultiFileAuthState('auth') // atau custom
+ printQRInTerminal: false,
+ auth: (await useMultiFileAuthState('auth')).state
 })
 
-sock.ev.on('connection.update', ({ status, lastDisconnect }) => {
-  if (status === 'open') console.log('connected')
+sock.ev.on('connection.update', ({ connection, lastDisconnect, isNewLogin, qr }) => {
+ if (isNewLogin) console.log('pairing baru, socket restart')
+ if (connection === 'open') console.log('connected')
   if (status === 'close') {
-    const shouldConnect = (lastDisconnect?.error?.output?.statusCode ?? 0) !== 408
-    if (shouldConnect) sock.connect()
+ const banned = (lastDisconnect?.error?.output?.statusCode ?? 0) === 408
+ if (!banned) console.log('bexx.stability auto-reconnects')
   }
 })
 
@@ -187,7 +188,8 @@ Semua method di bawah **sudah ada di object `sock`** (di-merge dari modul
 
 | Event | Payload |
 |---|---|
-| `connection.update` | `{ status, lastDisconnect, isLoggedIn, qr?, user?, reason?, connection`? }` |
+| `connection.update` | `{ connection: 'open'|'close'|'connecting', lastDisconnect?, isNewLogin?, qr? }` |
+| `pairing.success` | `{ method: 'code'|'qr', me, registered }` - pairing HP baru sukses |
 | `creds.update` | `{ myAppStateKeyId, noiseKey, ... }` |
 | `messages.upsert` | `{ messages, type: 'notify'\|'append'\|'history'\|'unknown' }` |
 | `messages.update` | `{ updates, type }` |

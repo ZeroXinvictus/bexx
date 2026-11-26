@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.4.0 — pairing notification + real stability auto-reconnect
+
+- **`pairing.success` event** — emitted when a device pairs (code or QR), so
+ users can notify on "HP baru pair, bot ready" instead of guessing via
+ `isNewLogin`. Payload `{ method: 'code'|'qr', me, registered }`.
+- **Stability engine real auto-reconnect** — the old `_scheduleReconnect`
+ called the non-existent `sock.connect()`. Now takes a `reconnect` callback
+ (wired by `makeWASocket`) that builds a fresh socket and the engine rebinds
+ its own event listeners onto the new socket (the old event buffer is
+ destroyed on `end()`).
+- Engines + examples use the `connection` field of `connection.update`
+ (not `status`).
+
 ## 0.3.0 — stability-first refactor + mime-types
 
 - **`sock.stability`** — connection watchdog: auto-reconnect (exp backoff + jitter),
