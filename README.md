@@ -458,7 +458,82 @@ console.log(Object.keys(proto.Message).slice(0, 10)) // 'conversation','imageMes
 
 ---
 
-## 9. Catatan distribusi
+## 9. bexx Engines (queue / cache / media / scheduler / manager)
+
+bexx adds native engines attached to `sock` (not just `sendMessage` wrappers).
+All are opt-in via config and tested in `test/engines.test.js`.
+
+```js
+const { makeWASocket } = require('bexx')
+const sock = makeWASocket({
+  queue:    { concurrency: 4, ratePerSecond: 10, maxRetries: 4 },
+  messages: { max: 5000, dedup: true },
+  media:    { logger },
+  schedule: { file: './jobs.json' }
+})
+```
+
+### 9.1 `sock.queue` — priority message queue + retry
+```js
+await sock.queue.send(jid, { text: 'hi' }, { msgId, priority: 1 }) // 1=high
+sock.queue.pause()            // stop sending
+sock.queue.resume()           // resume (auto-resumes on reconnect)
+sock.queue.abort(msgId)       // cancel a queued message
+sock.queue.drain()            // wait until empty
+sock.queue.metrics()          // { submitted, sent, failed, retried, dropped, ... }
+// events: submit | sent | error | retry | abort | pause | resume | connection
+```
+Connection-aware: auto-pauses on socket `close`, auto-resumes on `open`.
+Exponential backoff with jitter on connection errors (408/401/close).
+Duplicate `msgId` sends are de-duplicated.
+
+### 9.2 `sock.messages` — LRU cache + dedup
+```js
+sock.messages.set(msgId, msg, jid)
+sock.messages.get(msgId, jid)
+sock.messages.has(msgId, jid)
+sock.messages.isDuplicate(msgId)   // true if already seen
+sock.messages.metrics()
+```
+Inbound `messages.upsert` that were already seen get flagged `m._bexxDuplicate = true`
+so your handler can skip re-processing. Bounded by `max` (no memory leak).
+
+### 9.3 `sock.media` — smart media send
+```js
+// auto-detect source (Buffer | stream | file path | URL) + MIME + type routing
+await sock.media.send(jid, '/path/to/video.mp4', { caption: 'vid' })
+await sock.media.send(jid, { buffer: png, filename: 'a.png' })
+await sock.media.send(jid, 'https://x.co/pic.jpg')
+// image->imageMessage, video->videoMessage, audio->audioMessage,
+// pdf/zip/...->documentMessage, webp->stickerMessage
+```
+
+### 9.4 `sock.schedule` — persistent scheduler (restart-safe)
+```js
+sock.schedule.add(jid, { text: 'reminder' }, { dueAt: Date.now() + 3600_000 })
+sock.schedule.list()
+sock.schedule.cancel(id)
+sock.schedule.size
+// jobs persist to JSON file; pending jobs retry on reconnect / after restart
+```
+
+### 9.5 `BaileysManager` — multi-session, one process
+```js
+const { BaileysManager } = require('bexx')
+const mgr = new BaileysManager(makeWASocket, { authDir: '.bexx-sessions' })
+await mgr.create('account1')   // isolated auth per session
+await mgr.create('account2')
+console.log(mgr.states())      // { account1: 'open', account2: 'open' }
+await mgr.closeAll()
+```
+Auto-reconnect with exponential backoff, per-session error isolation.
+
+> Tidak diimplementasikan: **Message Transaction Engine** (rollback/idempotency) —
+> sengaja skip (YAGNI), karena pesan WA sudah terkirim tidak bisa di-rollback.
+
+---
+
+## 11. Catatan distribusi
 
 - **Depen VoIP**: `whatsapp-rust-bridge@0.5.5` (WASM engine). Kalau WA mengubah
   format, rebuild WASM + selaraskan WAProto.
@@ -468,7 +543,7 @@ console.log(Object.keys(proto.Message).slice(0, 10)) // 'conversation','imageMes
 - `require('bexx')` memuat bundle WAProto 15 MB — normal. Untuk import ringan
   pakai `require('bexx/WAProto')` saja.
 
-## 10. Repo & lisensi
+## 12. Repo & lisensi
 
 - GitHub: https://github.com/ZeroXinvictus/bexx
 - Lisensi: MIT

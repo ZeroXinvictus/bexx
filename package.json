@@ -1,6 +1,6 @@
 {
  "name": "bexx",
- "version": "0.1.0",
+ "version": "0.2.0",
  "description": "WhatsApp Web API for Node.js with CommonJS support, WAProto access, Bexx VoIP wrapper, scheduled-message & status-reply helpers.",
  "keywords": [
   "whatsapp",
@@ -99,5 +99,8 @@
  "type": "commonjs",
  "optionalDependencies": {
   "@roamhq/wrtc": "^0.10.0"
+ },
+ "scripts": {
+  "test": "node test/engines.test.js"
  }
 }
