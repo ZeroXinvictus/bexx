@@ -341,6 +341,57 @@ console.error("audioSticker test failed:", e);
 process.exit(1);
 });
 }
+// 13) MESSAGE BUILDER ENGINE: friendly wrappers over existing socket methods
+{
+ const { makeMessageBuilderEngine } = require("../lib/cjs/Engine/message-builder.js");
+ // fake sock: sendMessage captures the content
+ const sock = {
+  user: { id: "628@s.whatsapp.net" },
+  messages: { get: () => ({ message: { conversation: "original" } }) },
+  groupMetadata: async (jid) => ({ participants: [{ id: "628@s.whatsapp.net", jid: "628@s.whatsapp.net" }] }),
+  sendReceipt: async () => {},
+  _sent: [],
+  sendMessage: async (jid, content, opts) => {
+   sock._sent.push({ jid, content, opts });
+   return { key: { id: `sent-${sock._sent.length}` } };
+  }
+ };
+ const msg = makeMessageBuilderEngine(sock);
+
+ // poll
+ await msg.sendPoll("628@s.whatsapp.net", "Pick", ["A", "B"], { pollType: "REGULAR" });
+ assert.strictEqual(sock._sent[0].content.pollCreationMessageV5.v5.options.length, 2, "poll has 2 options");
+
+ // react
+ await msg.react({ remoteJid: "628@s.whatsapp.net", id: "msg1", fromMe: false }, "👍");
+ assert.strictEqual(sock._sent[1].content.reactionMessage.text, "👍", "reaction text set");
+
+ // contact
+ await msg.sendContact("628@s.whatsapp.net", "John", "628123456789");
+ assert.ok(sock._sent[2].content.contactMessage.contact.vcard.includes("BEGIN:VCARD"), "vCard generated");
+
+ // location
+ await msg.sendLocation("628@s.whatsapp.net", -6.2, 106.8, "Jakarta");
+ assert.strictEqual(sock._sent[3].content.locationMessage.degreesLatitude, -6.2, "location lat set");
+
+ // buttons
+ await msg.sendButtons("628@s.whatsapp.net", "Choose", [{ text: "A", id: "a" }, "B"]);
+ assert.strictEqual(sock._sent[4].content.buttonsMessage.buttons.length, 2, "buttons count");
+
+ // list
+ await msg.sendList("628@s.whatsapp.net", "Menu", [{ title: "S1", rows: [{ rowId: "r1", title: "Row" }] }]);
+ assert.strictEqual(sock._sent[5].content.listMessage.sections[0].rows.length, 1, "list row");
+
+ // getGroupMembers
+ const members = await msg.getGroupMembers("628@s.whatsapp.net");
+ assert.strictEqual(members.length, 1, "group members returned");
+
+ // vCard
+ const vc = msg.generateVCard("Test", "628123456789", { org: "ACME" });
+ assert.ok(vc.includes("ORG:ACME"), "vCard org included");
+
+ console.log("✓ msg (poll/react/contact/location/buttons/list/groupMembers/vCard)");
+}
 console.log("\nAll engine self-tests passed.");
 })().catch(err => {
  console.error("SELF-TEST FAILED:", err);

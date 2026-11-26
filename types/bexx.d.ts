@@ -154,6 +154,25 @@ options?: { seconds?: number; isAnimated?: boolean }
 ): Promise<AudioStickerResult>;
 }
 
+// ---- Message builder engine (sock.msg) ----
+export interface BexxMessageBuilderEngine {
+sendPoll(jid: string, name: string, options: Array<string | { text?: string; label?: string; locality?: string }>, opts?: Record<string, unknown>): Promise<{ key: { id: string } }>;
+react(key: { remoteJid?: string; id: string; fromMe?: boolean }, reaction?: string): Promise<{ key: { id: string } }>;
+edit(key: { remoteJid?: string; id: string; fromMe?: boolean }, text: string): Promise<{ key: { id: string } }>;
+sendContact(jid: string, name: string, number: string, opts?: { org?: string; note?: string }): Promise<{ key: { id: string } }>;
+sendLocation(jid: string, lat: number, lon: number, label?: string, description?: string, opts?: Record<string, unknown>): Promise<{ key: { id: string } }>;
+sendOrder(jid: string, items: Array<{ productId?: string; price?: number; quantity?: number; img?: unknown; productName?: string }>, currency?: string, note?: string, opts?: Record<string, unknown>): Promise<{ key: { id: string } }>;
+sendPayment(jid: string, amount: number, currency?: string, note?: string, opts?: Record<string, unknown>): Promise<{ key: { id: string } }>;
+sendButtons(jid: string, text: string, buttons: Array<string | { text?: string; label?: string; id?: string; type?: number }>, opts?: { footer?: string }): Promise<{ key: { id: string } }>;
+sendList(jid: string, title: string, sections: Array<{ title?: string; rows: Array<string | { rowId?: string; id?: string; title?: string; description?: string }> }>, opts?: Record<string, unknown>): Promise<{ key: { id: string } }>;
+sendMessageWithQuote(jid: string, content: Record<string, unknown>, quotedKey: { id: string; remoteJid?: string; fromMe?: boolean }, opts?: Record<string, unknown>): Promise<{ key: { id: string } }>;
+getGroupMembers(jid: string): Promise<Array<{ id: string; jid?: string; lid?: string; promotedTimestamp?: number }>>;
+pinMessage(key: { id: string; remoteJid?: string; fromMe?: boolean }): Promise<{ key: { id: string } }>;
+unpinMessage(key: { id: string; remoteJid?: string; fromMe?: boolean }): Promise<{ key: { id: string } }>;
+readReceipt(jid: string, key: { id: string }, type?: string): Promise<void>;
+generateVCard(name: string, number: string, opts?: { org?: string; note?: string }): string;
+}
+
 export interface BexxScheduler {
  send(jid: string, content: WAMessageContent | string, options?: { at?: number | Date }): Promise<string>;
  list(): Array<{ id: string; jid: string; at: number; status: "pending" | "running" | "completed" | "failed" | "cancelled" }>;
@@ -250,6 +269,7 @@ export interface BexxScheduler {
  doctor: BexxSessionDoctor;
 rich: BexxRichEngine;
 audioSticker: BexxAudioStickerEngine;
+msg: BexxMessageBuilderEngine;
 /** Native Baileys spam-flow report (also sock.reportBlockList, sock.updateBlockStatus exist). */
 reportFlow(jid: string, options?: { type?: string; source?: string; subject?: string; isKnownChat?: boolean }): Promise<{ jid: string; type: string; reported: boolean; node: unknown }>
  // native Baileys surface (inherited; typed loosely on purpose)
@@ -290,6 +310,7 @@ reportFlow(jid: string, options?: { type?: string; source?: string; subject?: st
  export function createBaileysTestHarness(options?: { latencyMs?: number; expectTimeoutMs?: number }): BexxTestHarness;
 export function makeRichEngine(sock?: BexxSocket, options?: Record<string, unknown>): BexxRichEngine;
 export function makeAudioStickerEngine(sock: BexxSocket, options?: Record<string, unknown>): BexxAudioStickerEngine;
+export function makeMessageBuilderEngine(sock: BexxSocket, options?: Record<string, unknown>): BexxMessageBuilderEngine;
  export function makeVoipClient(sock: BexxSocket, config?: Record<string, unknown>): Promise<any>;
  export function makeBexxVoIP(sock: BexxSocket, config?: Record<string, unknown>): Promise<any>;
  export function useMultiFileAuthState(folder: string): Promise<{ state: any; saveCreds: () => void }>;
