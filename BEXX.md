@@ -14,6 +14,7 @@ reliability engines that Baileys core does not ship:
 | **Session Doctor** | `sock.doctor` | diagnose session health; safe repair only, else REAUTH_REQUIRED |
 | **Offline Test Harness** | `createBaileysTestHarness()` | deterministic record/replay + network simulation |
 | **Rich / GenAI** | `sock.rich` | friendly builders + presets for rich response cards (text, image, code, table, buttons, pills, products, reels…) |
+| **Report Flow** | `sock.reportFlow(jid, opts)` | native spam-flow report IQ (overflow_menu_report, block, etc.) |
 | **Audio Sticker** | `sock.audioSticker` | combine a WebP sticker + audio into a WA "sound sticker" (nested `stickerMessage.audioMessage`, renders natively) |
 | VoIP | `makeBexxVoIP(sock)` | WebRTC relay calls (relay-transport) |
 
@@ -186,6 +187,9 @@ sock.rich.code("function x(){...}", { language: "js" });
 sock.rich.table(["col1","col2"], [["a","b"],["c","d"]]);
 sock.rich.product({ title: "Kopi", price: "15rb", image: "https://..." });
 sock.rich.gallery(["u1","u2"]);
+sock.rich.carousel([{ title: "Card", buttons: [{ label: "Go" }] }]);      // swipeable hscroll
+await sock.rich.send(sock, jid, sock.rich.presets.shop([product]));       // product carousel
+await sock.rich.send(sock, jid, sock.rich.presets.features([card]));     // feature carousel
 sock.rich.reels([reel]);
 ```
 

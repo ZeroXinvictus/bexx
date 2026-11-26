@@ -113,6 +113,7 @@ reels(items: unknown[], opts?: { title?: string; tip?: string }): RichCardSpec;
 html(payload: string, opts?: { title?: string; tip?: string }): RichCardSpec;
 imageV2(url: string | { url: string; mime?: string; preview?: string; full?: string }, opts?: { title?: string; tip?: string }): RichCardSpec;
 tip(value: string): RichCardSpec;
+carousel(cards: Array<{ title?: string; header?: string; sections?: unknown[]; buttons?: Array<{ label?: string; state?: string; kind?: string }>; body_typename?: string }>, opts?: { title?: string }): RichCardSpec;
 card(spec: RichCardSpec): RichCardSpec;
 build(richMsg: RichCardSpec): Promise<{ messageContextInfo: Record<string, unknown>; botForwardedMessage: { message: Record<string, unknown> } }>;
 send(sock: BexxSocket, jid: string, richMsg: RichCardSpec): Promise<{ key: { id: string } }>;
@@ -121,6 +122,8 @@ hello(): RichCardSpec;
 code(body: string, lang?: string): RichCardSpec;
 product(p: RichProduct): RichCardSpec;
 gallery(urls: string[], title?: string): RichCardSpec;
+shop(items: RichProduct[], title?: string): RichCardSpec;
+features(cards: Array<{ title?: string; sections?: unknown[]; buttons?: Array<{ label?: string }> }>, title?: string): RichCardSpec;
 };
 }
 
@@ -239,6 +242,8 @@ export interface BexxScheduler {
  doctor: BexxSessionDoctor;
 rich: BexxRichEngine;
 audioSticker: BexxAudioStickerEngine;
+/** Native Baileys spam-flow report (also sock.reportBlockList, sock.updateBlockStatus exist). */
+reportFlow(jid: string, options?: { type?: string; source?: string; subject?: string; isKnownChat?: boolean }): Promise<{ jid: string; type: string; reported: boolean; node: unknown }>
  // native Baileys surface (inherited; typed loosely on purpose)
  ev: EventEmitter;
  ws: any;

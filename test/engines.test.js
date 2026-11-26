@@ -262,7 +262,15 @@ assert.ok(sub.length >= 2, `has submessages (got ${sub.length})`);
 assert.ok(card.footerActionV2, "card maps footer to footerActionV2");
 assert.strictEqual(card.footerActionV2[0].cta_text, "Detail", "button label -> cta_text");
 assert.strictEqual(card.footerActionV2[0].cta_url, "https://wa.me", "button url -> cta_url");
-console.log("✓ rich (builders → valid richResponseMessage)");
+// carousel builder + shop/features presets map to the right primitives
+const car = rich.carousel([{ title: "C1", buttons: [{ label: "Go" }] }, { title: "C2" }]);
+assert.strictEqual(car.hscroll.length, 2, "carousel builds two hscroll cards");
+const carBuilt = await rich.build(car);
+const carUni = JSON.parse(Buffer.from(carBuilt.botForwardedMessage.message.richResponseMessage.unifiedResponse.data, "base64").toString());
+assert.strictEqual(carUni.sections[0].view_model.__typename, "GenAIHScrollLayoutViewModel", "carousel -> HScroll layout");
+assert.ok(rich.presets.shop([{ title: "Kopi", price: "15rb" }]).productMultiple, "shop preset -> productMultiple carousel");
+assert.ok(rich.presets.features([{ title: "F", buttons: [{ label: "x" }] }]).hscroll, "features preset -> hscroll");
+console.log("✓ rich (builders + carousel + presets → valid richResponseMessage)");
 }
 // 11) AUDIO STICKER ENGINE: nested proto assembly + send path (no network)
 {
