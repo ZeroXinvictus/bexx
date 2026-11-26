@@ -1,0 +1,103 @@
+{
+ "name": "bexx",
+ "version": "0.1.0",
+ "description": "WhatsApp Web API for Node.js with CommonJS support, WAProto access, Bexx VoIP wrapper, scheduled-message & status-reply helpers.",
+ "keywords": [
+  "whatsapp",
+  "baileys",
+  "bexx",
+  "whatsapp-web",
+  "bot",
+  "voip",
+  "newsletter",
+  "scheduled-messages",
+  "status-reply",
+  "a2ui",
+  "bloks-widget",
+  "protobuf",
+  "commonjs"
+ ],
+ "homepage": "https://github.com/ZarOffc11/bexx",
+ "repository": {
+  "type": "git",
+  "url": "https://github.com/ZarOffc11/bexx.git"
+ },
+ "license": "MIT",
+ "author": "ZarOffc11",
+ "main": "./lib/index.js",
+ "files": [
+  "lib/",
+  "README.md",
+  "CHANGELOG.md",
+  "CONTRIBUTING.md",
+  "LICENSE",
+  "NOTICE.md",
+  "package.json"
+ ],
+ "dependencies": {
+  "@cacheable/node-cache": "^1.4.0",
+  "@hapi/boom": "^10.0.1",
+  "async-mutex": "^0.5.0",
+  "libsignal": "^6.0.0",
+  "long": "^5.3.2",
+  "lru-cache": "^11.1.0",
+  "music-metadata": "^11.12.3",
+  "p-queue": "^9.0.0",
+  "pino": "^9.6.0",
+  "protobufjs": "^8.8.1",
+  "whatsapp-rust-bridge": "0.5.5",
+  "ws": "^8.18.0",
+  "link-preview-js": "^3.0.0",
+  "@adiwajshing/keyed-db": "^0.2.4",
+  "@hapi/hoek": "^11.0.7"
+ },
+ "peerDependencies": {
+  "audio-decode": "^2.1.3",
+  "jimp": "^1.6.1",
+  "sharp": "*"
+ },
+ "peerDependenciesMeta": {
+  "audio-decode": {
+   "optional": true
+  },
+  "jimp": {
+   "optional": true
+  },
+  "sharp": {
+   "optional": true
+  }
+ },
+ "engines": {
+  "node": ">=20.0.0"
+ },
+ "bugs": {
+  "url": "https://github.com/ZarOffc11/bexx/issues"
+ },
+ "exports": {
+  ".": {
+   "require": "./lib/index.js",
+   "default": "./lib/index.js"
+  },
+  "./WAProto": {
+   "require": "./lib/WAProto/index.js",
+   "default": "./lib/WAProto/index.js"
+  },
+  "./WAProto/index.js": "./lib/WAProto/index.js",
+  "./WAProto/*": "./lib/WAProto/*",
+  "./package.json": "./package.json"
+ },
+ "overrides": {
+  "whatsapp-rust-bridge": "0.5.5"
+ },
+ "publishConfig": {
+  "access": "public"
+ },
+ "contributors": [
+  "ZarOffc11",
+  "WhiskeySockets/Baileys contributors"
+ ],
+ "type": "commonjs",
+ "optionalDependencies": {
+  "@roamhq/wrtc": "^0.10.0"
+ }
+}
