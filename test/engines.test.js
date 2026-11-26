@@ -270,7 +270,23 @@ const carUni = JSON.parse(Buffer.from(carBuilt.botForwardedMessage.message.richR
 assert.strictEqual(carUni.sections[0].view_model.__typename, "GenAIHScrollLayoutViewModel", "carousel -> HScroll layout");
 assert.ok(rich.presets.shop([{ title: "Kopi", price: "15rb" }]).productMultiple, "shop preset -> productMultiple carousel");
 assert.ok(rich.presets.features([{ title: "F", buttons: [{ label: "x" }] }]).hscroll, "features preset -> hscroll");
-console.log("✓ rich (builders + carousel + presets → valid richResponseMessage)");
+// new submessage builders: latex / map / dynamic / inlineImage / search
+const lat = rich.latex([{ expression: "E=mc^2" }]);
+const latBuilt = await rich.build(lat);
+assert.ok(latBuilt.botForwardedMessage.message.richResponseMessage.submessages.some(m => m.messageType === 8), "latex -> submessage type 8");
+const map = rich.map({ center: { lat: -6.2, lon: 106.8 }, annotations: [{ latitude: -6.21, longitude: 106.81, title: "Pin" }] });
+const mapBuilt = await rich.build(map);
+assert.ok(mapBuilt.botForwardedMessage.message.richResponseMessage.submessages.some(m => m.messageType === 7), "map -> submessage type 7");
+const dyn = rich.dynamic({ url: "https://x/a.gif", type: "GIF" });
+const dynBuilt = await rich.build(dyn);
+assert.ok(dynBuilt.botForwardedMessage.message.richResponseMessage.submessages.some(m => m.messageType === 6), "dynamic -> submessage type 6");
+const sres = rich.search([{ title: "R", url: "https://x" }]);
+const sBuilt = await rich.build(sres);
+assert.ok(sBuilt.botForwardedMessage.message.richResponseMessage.submessages.some(m => m.messageType === 9), "search -> submessage type 9");
+assert.ok(rich.presets.map(-6.2, 106.8).map, "presets.map -> map spec");
+assert.ok(rich.presets.latex("x^2").latex, "presets.latex -> latex spec");
+assert.ok(rich.presets.search([{ title: "a", url: "b" }]).search, "presets.search -> search spec");
+console.log("✓ rich (builders + carousel + presets + new submessage types → valid richResponseMessage)");
 }
 // 11) AUDIO STICKER ENGINE: nested proto assembly + send path (no network)
 {

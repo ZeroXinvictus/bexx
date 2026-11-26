@@ -105,6 +105,11 @@ table(headers: unknown[], rows: unknown[][], opts?: { title?: string; tip?: stri
 product(p: RichProduct, opts?: { title?: string; tip?: string }): RichCardSpec;
 products(items: RichProduct[], opts?: { title?: string; tip?: string }): RichCardSpec;
 buttons(items: RichAction[], opts?: { title?: string; tip?: string }): RichCardSpec;
+latex(items: Array<{ expression: string; url?: string; width?: number; height?: number; font_height?: number; image_top_padding?: number }>, opts?: { title?: string; tip?: string }): RichCardSpec;
+map(spec: { center?: { lat: number; lon: number } | string; annotations?: Array<{ latitude: number; longitude: number; title?: string; body?: string; annotationNumber?: number }>; latDelta?: number; lonDelta?: number; showInfoList?: boolean; centerZoomLevel?: number }, opts?: { title?: string; tip?: string }): RichCardSpec;
+dynamic(spec: { url: string; type?: "IMAGE" | "GIF"; loopCount?: number }, opts?: { title?: string; tip?: string }): RichCardSpec;
+inlineImage(spec: { url: string; text?: string; mime_type?: string }, opts?: { title?: string; tip?: string }): RichCardSpec;
+search(items: Array<{ title: string; url: string; favicon?: string; image?: string; mime_type?: string }>, opts?: { title?: string; tip?: string }): RichCardSpec;
 suggestions(items: string[], opts?: { title?: string; tip?: string }): RichCardSpec;
 sources(items: unknown[], opts?: { title?: string; tip?: string }): RichCardSpec;
 video(url: string, opts?: { title?: string; tip?: string }): RichCardSpec;
@@ -124,6 +129,9 @@ product(p: RichProduct): RichCardSpec;
 gallery(urls: string[], title?: string): RichCardSpec;
 shop(items: RichProduct[], title?: string): RichCardSpec;
 features(cards: Array<{ title?: string; sections?: unknown[]; buttons?: Array<{ label?: string }> }>, title?: string): RichCardSpec;
+map(lat: number, lon: number, annotations?: Array<number | string | { latitude: number; longitude: number; title?: string; body?: string }>, title?: string): RichCardSpec;
+latex(exprs: Array<string | { expression: string; url?: string }>, title?: string): RichCardSpec;
+search(results: Array<{ title: string; url: string; favicon?: string; image?: string }>, title?: string): RichCardSpec;
 };
 }
 
