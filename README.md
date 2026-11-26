@@ -565,6 +565,38 @@ Auto-reconnect dengan backoff, isolasi error per session.
 - `require('bexx')` memuat bundle WAProto 15 MB — normal. Untuk import ringan
   pakai `require('bexx/WAProto')` saja.
 
+## 11b. Bexx engines — extension layer
+
+Di luar API native Baileys, bexx menempel engine production di socket.
+Semua **additive**: `sendMessage` lama tetap jalan. Detail + contoh di
+`BEXX.md` dan di `test/engines.test.js` (self-test, `npm test`).
+
+| Engine | API | Fungsi |
+|---|---|---|
+| Queue + Retry | `sock.queue` | kirim dgn prioritas, retry/backoff, pause/resume |
+| Cache + Dedup | `sock.messages` | cache TTL/LRU + deteksi duplikat |
+| Media | `sock.media` | deteksi source+MIME+type, upload via pipeline socket |
+| Scheduler | `sock.schedule` | kirim terjadwal, persist ke disk (atomic) |
+| Stability | `sock.stability` | auto-reconnect + heartbeat + degradasi graceful |
+| **Inspector** | `sock.inspector` | capture protocol, redaction, diff |
+| **Doctor** | `sock.doctor` | diagnose session, repair aman saja |
+| **Harness** | `createBaileysTestHarness()` | record/replay deterministik + sim network |
+| VoIP | `makeBexxVoIP(sock)` | relay call (WebRTC) |
+
+```js
+const bexx = require('bexx')
+const sock = bexx.makeWASocket({ auth: state, printQRInTerminal: false })
+
+await sock.queue.send(jid, { text: 'hi' }, { retries: 5 })
+sock.inspector.enable()                    // capture protocol (redacted)
+const d = await sock.doctor.check()        // HEALTHY | ... | REAUTH_REQUIRED
+
+const t = bexx.createBaileysTestHarness()  // offline, deterministic
+```
+
+`sock.doctor` tidak pernah menghapus auth dir — kalau repair tidak aman,
+ia melaporkan `SESSION_REAUTH_REQUIRED` dan berhenti.
+
 ## 12. Repo & lisensi
 
 - GitHub: https://github.com/ZeroXinvictus/bexx

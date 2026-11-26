@@ -164,6 +164,81 @@ const makeFakeSock = (online = true) => {
  st.stop();
  console.log("✓ stability (no reconnect on fresh pairing, anti-spam)");
 }
+ // 7) PROTOCOL INSPECTOR: records outbound nodes, redacts secrets, bounded export
+ {
+ const { makeProtocolInspector } = require("../lib/cjs/Engine/inspector.js");
+ const { EventEmitter } = require("node:events");
+ const sent = [];
+ const sock = {
+ ev: new EventEmitter(),
+ sendNode: async (node) => {
+ sent.push(node);
+ return node;
+ }
+};
+ const ins = makeProtocolInspector(sock, { maxEvents: 8 });
+ ins.enable();
+ await sock.sendNode({ tag: "iq", attrs: { id: "q1", to: "secret@s.whatsapp.net", secret: "TOP" }, content: [{ tag: "digest" }] });
+ const evts = ins.events();
+ assert.strictEqual(evts.length, 1, "recorded one outbound node");
+ assert.strictEqual(evts[0].id, "q1", "captured correlation id");
+ assert.strictEqual(evts[0].attrs.to, "[REDACTED]", "redacted `to` attr");
+ assert.strictEqual(evts[0].attrs.secret, "[REDACTED]", "redacted `secret` attr");
+ const m = ins.metrics();
+ assert.ok(m.events >= 1 && m.dropped >= 0, "metrics report events + dropped");
+ ins.stop();
+ console.log("✓ inspector (outbound capture + redaction + bounded)");
+}
+ // 8) SESSION DOCTOR: unpaired socket => REAUTH/CORRUPTED, refuses unsafe wipe
+ {
+ const { makeSessionDoctor } = require("../lib/cjs/Engine/doctor.js");
+ const sock = {
+ authState: { creds: { me: undefined }, keys: {} },
+ ws: { isOpen: false }
+};
+ const doc = makeSessionDoctor(sock);
+ const d = await doc.check();
+ assert.ok(["REAUTH_REQUIRED", "CORRUPTED"].includes(d.status), "unpaired => reauth/corrupt: " + d.status);
+ const r = await doc.repair();
+ assert.strictEqual(r.repaired, false, "doctor must not auto-repair an unpaired session");
+ assert.strictEqual(r.code, "SESSION_REAUTH_REQUIRED", "reports re-auth instead of wiping auth");
+ // healthy socket
+ const good = makeSessionDoctor({
+ authState: { creds: { me: { id: "me@s.whatsapp.net" } }, keys: { preKeys: [1], signedPreKey: [1], sessions: [{ a: 1 }], senderKeys: [{ a: 1 }], appStateSyncKeys: [{ a: 1 }] } },
+ ws: { isOpen: true },
+ stability: { health: () => ({ up: true }) }
+});
+ const gd = await good.check();
+ assert.strictEqual(gd.status, "HEALTHY", "full creds + open socket => healthy");
+ assert.strictEqual((await good.repair()).repaired, false, "healthy => nothing to repair");
+ console.log("✓ doctor (diagnose + safe-refusal on unpaired, healthy detection)");
+}
+ // 9) OFFLINE TEST HARNESS: record -> save -> replay is deterministic
+ {
+ const { createBaileysTestHarness } = require("../lib/cjs/Engine/harness.js");
+ const t = createBaileysTestHarness({ expectTimeoutMs: 200 });
+ t.record();
+ t.emit("messages.upsert", { messages: [{ key: { id: "a" } }, { key: { id: "b" } }] });
+ t.emit("connection.update", { connection: "open" });
+ const file = "/tmp/bexx-harness-test.ndjson";
+ t.saveFixture(file);
+ const lines = require("node:fs").readFileSync(file, "utf8").trim().split("\n");
+ assert.strictEqual(lines.length, 2, "recorded two events to NDJSON");
+ t.reset();
+ let ups = 0;
+ t.fake.on("messages.upsert", (p) => {
+ if (p?.messages?.length === 2) {
+ ups += 1;
+ }
+});
+ await t.replay(file);
+ assert.strictEqual(ups, 1, "replayed the upsert fixture deterministically");
+ t.network.disconnect();
+ assert.strictEqual(t.sock.ws.isOpen, false, "network.disconnect flips socket");
+ t.network.reconnect();
+ assert.strictEqual(t.sock.ws.isOpen, true, "network.reconnect restores socket");
+ console.log("✓ harness (record/save/replay + network simulation)");
+}
 console.log("\nAll engine self-tests passed.");
 })().catch(err => {
  console.error("SELF-TEST FAILED:", err);
