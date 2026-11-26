@@ -54,7 +54,96 @@ declare module "bexx" {
  ): Promise<{ key: { id: string }; [k: string]: unknown }>;
 }
 
- export interface BexxScheduler {
+ // ---- Rich / GenAI message builders (sock.rich) ----
+export type RichMediaSource = Buffer | Uint8Array | NodeJS.ReadableStream | string;
+export interface RichAction {
+label?: string;
+url?: string;
+type?: string;
+cta_text?: string;
+cta_type?: string;
+cta_url?: string;
+}
+export interface RichProduct {
+title: string;
+brand?: string;
+price?: string;
+sale_price?: string;
+product_url?: string;
+image?: string;
+}
+export interface RichCardSpec {
+text?: string;
+title?: string;
+response_id?: string;
+tip?: string;
+inline_entities?: unknown[];
+code?: string | { language?: string; code: string };
+table?: { title?: string; rows: unknown[][] };
+html?: string;
+image?: string;
+images?: string[];
+imageV2?: string | { url: string; mime?: string; preview?: string; full?: string };
+hscroll?: unknown[];
+video?: string;
+product?: RichProduct;
+products?: RichProduct[];
+post?: unknown[];
+reels?: unknown[];
+sources?: unknown[];
+suggestions?: string[];
+buttons?: RichAction[];
+footer?: string | RichAction[] | Record<string, unknown>;
+footerActionV2?: RichAction[];
+}
+export interface BexxRichEngine {
+text(value: string, opts?: { title?: string; tip?: string; inline_entities?: unknown[] }): RichCardSpec;
+code(body: string, opts?: { language?: string; title?: string; tip?: string }): RichCardSpec;
+image(url: string, opts?: { title?: string; tip?: string }): RichCardSpec;
+gallery(urls: string[], opts?: { title?: string; tip?: string }): RichCardSpec;
+table(headers: unknown[], rows: unknown[][], opts?: { title?: string; tip?: string }): RichCardSpec;
+product(p: RichProduct, opts?: { title?: string; tip?: string }): RichCardSpec;
+products(items: RichProduct[], opts?: { title?: string; tip?: string }): RichCardSpec;
+buttons(items: RichAction[], opts?: { title?: string; tip?: string }): RichCardSpec;
+suggestions(items: string[], opts?: { title?: string; tip?: string }): RichCardSpec;
+sources(items: unknown[], opts?: { title?: string; tip?: string }): RichCardSpec;
+video(url: string, opts?: { title?: string; tip?: string }): RichCardSpec;
+post(items: unknown[], opts?: { title?: string; tip?: string }): RichCardSpec;
+reels(items: unknown[], opts?: { title?: string; tip?: string }): RichCardSpec;
+html(payload: string, opts?: { title?: string; tip?: string }): RichCardSpec;
+imageV2(url: string | { url: string; mime?: string; preview?: string; full?: string }, opts?: { title?: string; tip?: string }): RichCardSpec;
+tip(value: string): RichCardSpec;
+card(spec: RichCardSpec): RichCardSpec;
+build(richMsg: RichCardSpec): Promise<{ messageContextInfo: Record<string, unknown>; botForwardedMessage: { message: Record<string, unknown> } }>;
+send(sock: BexxSocket, jid: string, richMsg: RichCardSpec): Promise<{ key: { id: string } }>;
+presets: {
+hello(): RichCardSpec;
+code(body: string, lang?: string): RichCardSpec;
+product(p: RichProduct): RichCardSpec;
+gallery(urls: string[], title?: string): RichCardSpec;
+};
+}
+
+// ---- Audio (sound) sticker engine (sock.audioSticker) ----
+export interface AudioStickerSources {
+sticker: RichMediaSource;
+audio: RichMediaSource;
+}
+export interface AudioStickerResult {
+ok: boolean;
+size: number;
+seconds: number | null;
+key?: { id: string };
+}
+export interface BexxAudioStickerEngine {
+send(
+jid: string,
+sources: AudioStickerSources,
+options?: { seconds?: number; isAnimated?: boolean }
+): Promise<AudioStickerResult>;
+}
+
+export interface BexxScheduler {
  send(jid: string, content: WAMessageContent | string, options?: { at?: number | Date }): Promise<string>;
  list(): Array<{ id: string; jid: string; at: number; status: "pending" | "running" | "completed" | "failed" | "cancelled" }>;
  get(id: string): { id: string; jid: string; at: number; status: string } | undefined;
@@ -148,6 +237,8 @@ declare module "bexx" {
  stability: BexxStabilityEngine;
  inspector: BexxProtocolInspector;
  doctor: BexxSessionDoctor;
+rich: BexxRichEngine;
+audioSticker: BexxAudioStickerEngine;
  // native Baileys surface (inherited; typed loosely on purpose)
  ev: EventEmitter;
  ws: any;
@@ -184,6 +275,8 @@ declare module "bexx" {
  export function makeSessionDoctor(sock: BexxSocket, options?: Record<string, unknown>): BexxSessionDoctor;
  export function makeProtocolInspector(sock: BexxSocket, options?: BexxInspectorOptions): BexxProtocolInspector;
  export function createBaileysTestHarness(options?: { latencyMs?: number; expectTimeoutMs?: number }): BexxTestHarness;
+export function makeRichEngine(sock?: BexxSocket, options?: Record<string, unknown>): BexxRichEngine;
+export function makeAudioStickerEngine(sock: BexxSocket, options?: Record<string, unknown>): BexxAudioStickerEngine;
  export function makeVoipClient(sock: BexxSocket, config?: Record<string, unknown>): Promise<any>;
  export function makeBexxVoIP(sock: BexxSocket, config?: Record<string, unknown>): Promise<any>;
  export function useMultiFileAuthState(folder: string): Promise<{ state: any; saveCreds: () => void }>;

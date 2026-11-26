@@ -252,13 +252,70 @@ title: "Rich Demo"
 });
 assert.ok(card.text, "card has text");
 assert.ok(card.image, "card has image");
-assert.ok(card.footer, "card has footer");
+assert.ok(card.footerActionV2, "card maps footer buttons to footerActionV2");
 const built = await rich.build(card);
 assert.ok(built.botForwardedMessage, "build produces botForwardedMessage");
 assert.ok(built.botForwardedMessage.message.richResponseMessage, "has richResponseMessage");
 const sub = built.botForwardedMessage.message.richResponseMessage.submessages;
 assert.ok(sub.length >= 2, `has submessages (got ${sub.length})`);
+// the corrected mapping: buttons array -> cta_* action row, not dropped footer
+assert.ok(card.footerActionV2, "card maps footer to footerActionV2");
+assert.strictEqual(card.footerActionV2[0].cta_text, "Detail", "button label -> cta_text");
+assert.strictEqual(card.footerActionV2[0].cta_url, "https://wa.me", "button url -> cta_url");
 console.log("✓ rich (builders → valid richResponseMessage)");
+}
+// 11) AUDIO STICKER ENGINE: nested proto assembly + send path (no network)
+{
+const { makeAudioStickerEngine } = require("../lib/cjs/Engine/audio-sticker.js");
+const { parseWebp } = (() => { try { const m = require("../lib/cjs/Engine/audio-sticker.js"); return { parseWebp: null }; } catch { return {}; } })();
+// Build a minimal valid WebP (VP8 chunk) to satisfy the parser.
+const webp = Buffer.alloc(40);
+webp.write("RIFF", 0, "ascii");
+webp.writeUInt32LE(36, 4);
+webp.write("WEBP", 8, "ascii");
+webp.write("VP8 ", 12, "ascii");
+webp.writeUInt32LE(0, 16);
+// VP8: width/height LE16 at 26/28, masked &0x3fff
+webp.writeUInt16LE(512, 26);
+webp.writeUInt16LE(512, 28);
+const sock = {
+waUploadToServer: async () => ({ mediaUrl: "https://mmg.whatsapp.net/fake", directPath: "/fake" }),
+media: {
+resolveSource: async (src) => ({ data: src, mimetype: "image/webp" }),
+},
+_originalSendMessage: async (jid, msg, opts) => {
+assert.ok(msg.stickerMessage, "prepared proto keeps stickerMessage");
+assert.ok(msg.stickerMessage.audioMessage, "nested audioMessage present");
+assert.ok(msg.stickerMessage.contextInfo?.experienceIds?.includes(13001), "experienceIds set");
+assert.ok(msg.messageContextInfo?.messageSecret, "messageSecret set");
+return { key: { id: "test" } };
+},
+sendMessage: function () { throw new Error("should use _originalSendMessage"); }
+};
+// override prepareWAMessageMedia's upload via the engine's _upload: the engine calls
+// Utils prepareWAMessageMedia which needs a real waUploadToServer + mediaCache.
+// Provide a no-op upload that returns the fields the engine expects.
+const eng = makeAudioStickerEngine(sock, {});
+// stub the internal _upload to avoid the real media pipeline (network + sharp).
+eng._upload = async (buf, mime, type) => ({
+proto: {
+url: "https://mmg.whatsapp.net/fake", directPath: "/fake", mediaKey: Buffer.alloc(32),
+fileSha256: Buffer.alloc(32), fileEncSha256: Buffer.alloc(32),
+fileLength: String(buf.length), mediaKeyTimestamp: 1
+},
+type
+});
+// stub the opus transcoder too so we don't depend on ffmpeg in the test
+eng._toOpus = async (buf) => ({ buf, mimetype: "audio/ogg; codecs=opus", seconds: undefined });
+await eng.send("628@s.whatsapp.net", { sticker: webp, audio: Buffer.alloc(64) }, { seconds: 3 }).then(res => {
+assert.strictEqual(res.ok, true, "send returns ok");
+assert.strictEqual(res.size, 64, "audio size reported");
+assert.strictEqual(res.seconds, 3, "override seconds honoured");
+console.log("✓ audioSticker (nested proto assembly + originalSend path)");
+}).catch(e => {
+console.error("audioSticker test failed:", e);
+process.exit(1);
+});
 }
 console.log("\nAll engine self-tests passed.");
 })().catch(err => {
