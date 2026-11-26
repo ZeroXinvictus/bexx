@@ -191,6 +191,10 @@ sock.rich.carousel([{ title: "Card", buttons: [{ label: "Go" }] }]);      // swi
 await sock.rich.send(sock, jid, sock.rich.presets.shop([product]));       // product carousel
 await sock.rich.send(sock, jid, sock.rich.presets.features([card]));     // feature carousel
 sock.rich.reels([reel]);
+sock.rich.latex([{ expression: "E=mc^2" }]); // math formula
+sock.rich.map({ center: { lat: -6.2, lon: 106.8 }, annotations: [{ latitude: -6.21, longitude: 106.81, title: "Pin" }] }); // location pins
+sock.rich.dynamic({ url: "https://x/a.gif", type: "GIF" }); // animated media
+sock.rich.search([{ title: "Result", url: "https://x", favicon: "https://x/favicon.ico" }]); // search results
 ```
 
 `buttons`/`footer` arrays are normalised to the `cta_*` action-row shape the
