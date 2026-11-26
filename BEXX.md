@@ -13,6 +13,8 @@ reliability engines that Baileys core does not ship:
 | **Protocol Inspector** | `sock.inspector` | DevTools-style protocol capture, redaction, diff |
 | **Session Doctor** | `sock.doctor` | diagnose session health; safe repair only, else REAUTH_REQUIRED |
 | **Offline Test Harness** | `createBaileysTestHarness()` | deterministic record/replay + network simulation |
+| **Rich / GenAI** | `sock.rich` | friendly builders + presets for rich response cards (text, image, code, table, buttons, pills, products, reels…) |
+| **Audio Sticker** | `sock.audioSticker` | combine a WebP sticker + audio into a WA "sound sticker" (nested `stickerMessage.audioMessage`, renders natively) |
 | VoIP | `makeBexxVoIP(sock)` | WebRTC relay calls (relay-transport) |
 
 All engines are **additive**: `sock.sendMessage(...)` and every native Baileys
@@ -160,6 +162,54 @@ t.network.reconnect();
 
 Replay is deterministic; fixtures are NDJSON so they're diff-able and
 sanitizable before committing.
+
+## Rich / GenAI messages (`sock.rich`)
+
+Builders return a **plain** `richMessage` object you feed straight to
+`sendMessage`. Each maps to the GenAI UX primitive WA actually renders.
+
+```js
+// one-call nice card (text+link + image + CTA buttons + follow-up pills)
+await sock.rich.send(sock, jid, sock.rich.presets.hello());
+
+// or compose your own
+await sock.sendMessage(jid, sock.rich.card({
+  title: "Result",
+  text: "Halo, ini **bold** + [link](https://wa.me) + $E=mc^2$.",
+  image: "https://mmg.whatsapp.net/f/...",
+  buttons: [{ label: "Detail", url: "https://wa.me" }],
+  suggestions: ["Coba lagi", "Jelasin"]
+}));
+
+// single-primitive helpers
+sock.rich.code("function x(){...}", { language: "js" });
+sock.rich.table(["col1","col2"], [["a","b"],["c","d"]]);
+sock.rich.product({ title: "Kopi", price: "15rb", image: "https://..." });
+sock.rich.gallery(["u1","u2"]);
+sock.rich.reels([reel]);
+```
+
+`buttons`/`footer` arrays are normalised to the `cta_*` action-row shape the
+renderer reads (no more blank footer cards). `build()` returns the prepared
+proto; `send()` is build + `sendMessage` in one step.
+
+## Audio (sound) sticker (`sock.audioSticker`)
+
+Combine a WebP sticker with an audio track (or a video — its audio is
+extracted) into a WA sound sticker using the **rendering** mechanism
+(`stickerMessage.audioMessage`, not the opaque `audioStickerMessage` wrapper):
+
+```js
+const res = await sock.audioSticker.send(jid, {
+  sticker: "sticker.webp",          // Buffer / path / {url} / {stream}
+  audio: "voice.ogg"               // audio, or a video whose audio is used
+});
+// res = { ok, size, seconds }
+```
+
+Audio is transcoded to Ogg/Opus via `ffmpeg` when present (already-Opus
+sources pass through untouched). Dimensions are read straight from the WebP
+(RIFF/VP8/VP8L/VP8X) — no `sharp` required.
 
 ## VoIP
 

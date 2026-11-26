@@ -581,6 +581,8 @@ Semua **additive**: `sendMessage` lama tetap jalan. Detail + contoh di
 | **Inspector** | `sock.inspector` | capture protocol, redaction, diff |
 | **Doctor** | `sock.doctor` | diagnose session, repair aman saja |
 | **Harness** | `createBaileysTestHarness()` | record/replay deterministik + sim network |
+| **Rich / GenAI** | `sock.rich` | builder + preset card rich (text, gambar, kode, tombol, pills, produk, reels) |
+| **Audio Sticker** | `sock.audioSticker` | gabung WebP + audio jadi "sound sticker" (WA render native) |
 | VoIP | `makeBexxVoIP(sock)` | relay call (WebRTC) |
 
 ```js
@@ -590,6 +592,9 @@ const sock = bexx.makeWASocket({ auth: state, printQRInTerminal: false })
 await sock.queue.send(jid, { text: 'hi' }, { retries: 5 })
 sock.inspector.enable()                    // capture protocol (redacted)
 const d = await sock.doctor.check()        // HEALTHY | ... | REAUTH_REQUIRED
+
+await sock.rich.send(sock, jid, sock.rich.presets.hello()) // card rich cakep
+const st = await sock.audioSticker.send(jid, { sticker: 'a.webp', audio: 'b.ogg' })
 
 const t = bexx.createBaileysTestHarness()  // offline, deterministic
 ```
