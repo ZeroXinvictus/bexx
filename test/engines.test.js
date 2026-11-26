@@ -25,7 +25,7 @@ const makeFakeSock = (online = true) => {
   },
   _setOnline(v) {
    _online = v;
-   ev.emit("connection.update", { status: v ? "open" : "close" });
+   ev.emit("connection.update", { connection: v ? "open" : "close" });
   }
  };
  return sock;
@@ -85,8 +85,8 @@ const makeFakeSock = (online = true) => {
   const mgr = new BM((cfg) => {
    const { EventEmitter } = require("node:events");
    const ev = new EventEmitter();
-   const s = { ev, connect: () => ev.emit("connection.update", { status: "open" }), end: () => ev.emit("connection.update", { status: "close" }) };
-   s.ev.emit("connection.update", { status: "open" });
+   const s = { ev, connect: () => ev.emit("connection.update", { connection: "open" }), end: () => ev.emit("connection.update", { connection: "close" }) };
+   s.ev.emit("connection.update", { connection: "open" });
    return s;
   });
   const a = await mgr.create("sessA");
@@ -118,28 +118,32 @@ const makeFakeSock = (online = true) => {
  }
  console.log("✓ media (mime-types routing)");
 }
- // 6) STABILITY: auto-reconnect + graceful degradation (queue pause/resume)
+// 6) STABILITY: auto-reconnect (via reconnect callback) + graceful degradation
 {
  const { makeStabilityEngine } = require("../lib/cjs/Engine/stability.js");
  const ev = new EventEmitter();
  let paused = false, resumed = false;
  const sock = {
-  ev,
-  connect: () => ev.emit("connection.update", { status: "open" }),
-  end: () => ev.emit("connection.update", { status: "close" }),
-  queue: { pause: () => (paused = true), resume: () => (resumed = true) }
+ ev,
+ queue: { pause: () => (paused = true), resume: () => (resumed = true) }
  };
- const st = makeStabilityEngine(sock, { heartbeatIntervalMs: 50, heartbeatTimeoutMs: 200, baseBackoffMs: 10, maxRetries: 3 });
+ const ev2 = new EventEmitter();
+ const sock2 = { ev: ev2, queue: sock.queue };
+ const st = makeStabilityEngine(sock, {
+ heartbeatIntervalMs: 50, heartbeatTimeoutMs: 200, baseBackoffMs: 10, maxRetries: 3,
+ reconnect: () => sock2
+ });
  assert.strictEqual(st.health().up, true, "starts healthy");
- ev.emit("connection.update", { status: "close" });
+ ev.emit("connection.update", { connection: "close" });
  await new Promise(r => setTimeout(r, 40));
  assert.strictEqual(st.health().up, false, "close => unhealthy");
  assert.strictEqual(paused, true, "queue auto-paused when unhealthy");
- ev.emit("connection.update", { status: "open" });
- await new Promise(r => setTimeout(r, 40));
- assert.strictEqual(st.health().up, true, "open => healthy");
+ await new Promise(r => setTimeout(r, 600));
+ ev2.emit("connection.update", { connection: "open" });
+ await new Promise(r => setTimeout(r, 600));
+ assert.strictEqual(st.health().up, true, "reconnect to new socket => healthy");
  assert.strictEqual(resumed, true, "queue auto-resumed when healthy");
- assert.strictEqual(st.health().retries, 0, "retries reset on reopen");
+ assert.strictEqual(st._sock, sock2, "engine rebound to the new socket");
  st.stop();
  console.log("✓ stability (auto-reconnect + graceful degradation)");
 }
